@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Salesforce Org Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0f1a;--bg2:#111827;--bg3:#1a2235;--bg4:#1f2a3e;
+  --border:#263048;--border2:#2f3c58;
+  --txt:#e2e8f0;--txt2:#94a3b8;--txt3:#64748b;
+  --gold:#f0b429;--gold2:#f8cc6a;--gold-bg:rgba(240,180,41,.08);--gold-glow:rgba(240,180,41,.22);
+  --cyan:#38bdf8;--cyan-bg:rgba(56,189,248,.08);
+  --green:#4ade80;--green-bg:rgba(74,222,128,.08);
+  --red:#f87171;--red-bg:rgba(248,113,113,.08);
+  --serif:'DM Serif Display',Georgia,serif;
+  --sans:'DM Sans',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --r:8px;--r-lg:12px;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+#root{height:100%}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* SHELL */
+.shell{display:grid;grid-template-rows:56px 1fr;height:100vh;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:14px;padding:0 28px;background:var(--bg2);border-bottom:1px solid var(--border);position:relative}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-glow),transparent)}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#000;flex-shrink:0;box-shadow:0 2px 12px var(--gold-glow);font-family:var(--mono)}
+.logo-text{font-family:var(--serif);font-size:19px;color:var(--txt);letter-spacing:-.3px}
+.logo-text span{color:var(--gold)}
+.topbar-sub{font-size:11px;color:var(--txt3);font-family:var(--mono)}
+.topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.status-pill{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-family:var(--mono)}
+.status-pill.running{background:var(--gold-bg);color:var(--gold);border:1px solid rgba(240,180,41,.2)}
+.status-pill.done{background:var(--green-bg);color:var(--green);border:1px solid rgba(74,222,128,.2)}
+.status-pill.error{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.pdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.pdot.gold{background:var(--gold);animation:pulse 1.6s ease-in-out infinite}
+.pdot.green{background:var(--green)}.pdot.red{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+
+/* WORKSPACE */
+.workspace{display:grid;grid-template-columns:240px 1fr;overflow:hidden;height:calc(100vh - 56px)}
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:12px 0 20px}
+.sbl{padding:14px 20px 5px;font-size:9.5px;font-family:var(--mono);color:var(--txt3);letter-spacing:1.4px;text-transform:uppercase}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;color:var(--txt2);font-size:13px;transition:all .12s;position:relative;user-select:none}
+.nav:hover{color:var(--txt);background:var(--bg3)}
+.nav.on{color:var(--gold);background:var(--gold-bg)}
+.nav.on::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
+.nav-ic{width:18px;text-align:center;flex-shrink:0}
+.nbadge{margin-left:auto;font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:10px;background:var(--bg4);color:var(--txt3)}
+.nav.on .nbadge{background:var(--gold-bg);color:var(--gold)}
+.sfooter{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border)}
+.sfchip{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--mono);color:var(--txt3);padding:3px 8px;background:var(--bg3);border-radius:4px;margin-bottom:4px}
+
+/* CONTENT */
+.content{overflow-y:auto;background:var(--bg)}
+.page{padding:32px 36px 56px;max-width:1100px}
+.ph{margin-bottom:28px}
+.pt{font-family:var(--serif);font-size:30px;font-weight:400;line-height:1.15;letter-spacing:-.4px;color:var(--txt)}
+.pt em{font-style:italic;color:var(--gold)}
+.pc{font-size:13px;color:var(--txt2);margin-top:6px;font-weight:300;max-width:560px}
+
+/* STEP BAR */
+.stepbar{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:28px}
+.step{flex:1;padding:11px 14px;display:flex;align-items:center;gap:8px;border-right:1px solid var(--border);cursor:pointer;transition:background .12s}
+.step:last-child{border-right:none}.step:hover{background:var(--bg3)}.step.active{background:var(--gold-bg)}.step.done{background:var(--green-bg)}
+.snum{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);font-weight:500;flex-shrink:0;background:var(--bg4);color:var(--txt3);border:1px solid var(--border)}
+.step.active .snum{background:var(--gold);color:#000;border-color:var(--gold)}.step.done .snum{background:var(--green);color:#000;border-color:var(--green)}
+.slbl{font-size:12px;font-weight:500;color:var(--txt2)}.step.active .slbl{color:var(--gold)}.step.done .slbl{color:var(--green)}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.card+.card{margin-top:16px}
+.ch{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.chi{font-size:16px;width:22px;text-align:center}
+.cht{font-size:13px;font-weight:600;color:var(--txt)}
+.chs{font-size:11px;color:var(--txt3);margin-top:2px;font-family:var(--mono)}
+.cb{padding:22px}
+
+/* FORM */
+.fg{display:grid;gap:16px}.fg2{grid-template-columns:1fr 1fr}.fg3{grid-template-columns:1fr 1fr 1fr}.fspan{grid-column:1/-1}
+.f{display:flex;flex-direction:column;gap:5px}
+.f label{font-size:10px;font-family:var(--mono);color:var(--txt3);letter-spacing:.8px;text-transform:uppercase}
+.req{color:var(--red);margin-left:3px}
+.fhint{font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:3px}
+input[type=text],input[type=password],input[type=email],input[type=number],select,textarea{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--txt);padding:9px 13px;font-family:var(--mono);font-size:12px;outline:none;transition:border .15s,box-shadow .15s;width:100%}
+input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-bg)}
+input::placeholder{color:var(--txt3)}
+select option{background:var(--bg3)}
+input[type=checkbox]{accent-color:var(--gold);width:auto;cursor:pointer}
+
+/* RADIO CARDS */
+.rg{display:flex;flex-direction:column;gap:8px}
+.rc{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s}
+.rc:hover{border-color:var(--border2);background:var(--bg3)}.rc.on{border-color:var(--gold);background:var(--gold-bg)}
+.rc input[type=radio]{margin-top:3px;accent-color:var(--gold);flex-shrink:0;width:auto;background:none;border:none;padding:0}
+.rt{font-size:13px;font-weight:600;color:var(--txt)}.rd{font-size:11px;color:var(--txt3);margin-top:3px;line-height:1.4}
+.rbadge{display:inline-block;margin-top:5px;font-size:9px;font-family:var(--mono);padding:2px 8px;border-radius:10px;background:var(--gold-bg);color:var(--gold)}
+
+/* PROVIDER GRID */
+.pg{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.pt2{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s;text-align:center}
+.pt2:hover{border-color:var(--border2);background:var(--bg3)}.pt2.on{border-color:var(--gold);background:var(--gold-bg)}
+.plogo{font-size:22px;line-height:1}.pname{font-size:11px;font-weight:600;color:var(--txt2)}.pt2.on .pname{color:var(--gold)}.ptag{font-size:9px;color:var(--txt3);font-family:var(--mono)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 22px;border-radius:6px;border:none;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;transition:all .16s;user-select:none;white-space:nowrap}
+.btn-p{background:var(--gold);color:#000}.btn-p:hover:not(:disabled){background:var(--gold2);box-shadow:0 4px 20px var(--gold-glow);transform:translateY(-1px)}.btn-p:active{transform:none;box-shadow:none}.btn-p:disabled{background:var(--bg4);color:var(--txt3);cursor:not-allowed;transform:none;box-shadow:none}
+.btn-s{background:var(--bg3);color:var(--txt2);border:1px solid var(--border2)}.btn-s:hover:not(:disabled){color:var(--txt);border-color:var(--txt3)}
+.btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.btn-sm{padding:6px 14px;font-size:12px}
+
+/* ALERTS */
+.alert{padding:11px 15px;border-radius:var(--r);border:1px solid;font-size:12px;font-family:var(--mono);display:flex;align-items:flex-start;gap:10px}
+.aok{background:var(--green-bg);border-color:rgba(74,222,128,.3);color:var(--green)}
+.aerr{background:var(--red-bg);border-color:rgba(248,113,113,.3);color:var(--red)}
+.ainfo{background:var(--gold-bg);border-color:rgba(240,180,41,.2);color:var(--gold)}
+.acyan{background:var(--cyan-bg);border-color:rgba(56,189,248,.2);color:var(--cyan)}
+.aic{flex-shrink:0;margin-top:1px}
+
+/* PHASES */
+.phl{display:flex;flex-direction:column;gap:4px}
+.ph-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:7px;border:1px solid var(--border);background:var(--bg2);transition:all .2s}
+.ph-row.done{border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.03)}
+.ph-row.live{border-color:var(--gold);background:var(--gold-bg);box-shadow:0 0 18px var(--gold-bg)}
+.ph-row.wait{opacity:.3}
+.ph-ic{font-size:13px;width:18px;text-align:center;flex-shrink:0}
+.ph-nm{flex:1;font-size:12px;font-family:var(--mono);color:var(--txt2)}
+.ph-row.done .ph-nm{color:var(--txt)}.ph-row.live .ph-nm{color:var(--gold)}
+.ph-t{font-family:var(--mono);font-size:10px;color:var(--txt3)}
+
+/* LOG */
+.log{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px;font-family:var(--mono);font-size:11px;line-height:1.9;max-height:220px;overflow-y:auto}
+.ll{display:flex;gap:10px;align-items:baseline}
+.lt{color:var(--txt3);flex-shrink:0;font-size:10px;min-width:40px}
+.lok{color:var(--green)}.lerr{color:var(--red)}.lplain{color:var(--txt2)}
+
+/* PROGRESS */
+.ptrack{height:3px;background:var(--bg4);border-radius:99px;overflow:hidden;margin:10px 0}
+.pfill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:99px;transition:width .5s ease}
+
+/* HARVEST */
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:14px}
+.htile{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px;text-align:center}
+.hn{font-family:var(--serif);font-size:26px;color:var(--gold);line-height:1}
+.hk{font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:4px;text-transform:uppercase;letter-spacing:.7px}
+
+/* STATS */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:22px}
+.scard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center}
+.sn{font-family:var(--serif);font-size:32px;font-weight:400;line-height:1;color:var(--txt)}
+.sn.gold{color:var(--gold)}.sn.red{color:var(--red)}.sn.green{color:var(--green)}.sn.cyan{color:var(--cyan)}
+.sk{font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:5px;text-transform:uppercase;letter-spacing:.8px}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:10px 18px;cursor:pointer;color:var(--txt3);font-size:13px;border-bottom:2px solid transparent;transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0}
+.tab:hover{color:var(--txt2)}.tab.on{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
+
+/* CAT LIST */
+.cl{display:flex;flex-direction:column;gap:3px}
+.cr{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:6px;cursor:pointer;color:var(--txt2);font-size:12px;transition:all .12s;border:1px solid transparent}
+.cr:hover{background:var(--bg3);color:var(--txt)}.cr.on{background:var(--gold-bg);color:var(--gold);border-color:rgba(240,180,41,.2)}
+.crn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crc{font-family:var(--mono);font-size:9.5px;padding:2px 7px;border-radius:10px;background:var(--bg4);color:var(--txt3);flex-shrink:0}
+.cr.on .crc{background:var(--gold-bg);color:var(--gold)}
+
+/* MARKDOWN */
+.md{font-size:13px;line-height:1.8;color:var(--txt2)}
+.md h1{font-family:var(--serif);font-size:26px;font-weight:400;color:var(--txt);margin:0 0 14px;letter-spacing:-.3px}
+.md h2{font-family:var(--serif);font-size:20px;font-weight:400;color:var(--txt);margin:24px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.md h3{font-family:var(--mono);font-size:11px;color:var(--gold);margin:18px 0 7px;text-transform:uppercase;letter-spacing:.8px}
+.md h4{font-size:13px;font-weight:600;color:var(--txt);margin:12px 0 5px}
+.md p{margin-bottom:10px}
+.md code{font-family:var(--mono);font-size:11px;background:var(--bg3);padding:2px 7px;border-radius:4px;color:var(--gold)}
+.md pre{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;overflow-x:auto;margin:10px 0}
+.md pre code{background:none;padding:0;color:var(--txt2);font-size:11.5px}
+.md table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+.md th{text-align:left;padding:8px 12px;border-bottom:2px solid var(--border2);font-family:var(--mono);font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px}
+.md td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--txt2)}
+.md tr:hover td{background:var(--bg3);color:var(--txt)}
+.md ul,.md ol{padding-left:18px;margin-bottom:10px}
+.md li{margin:3px 0}
+.md blockquote{border-left:3px solid var(--gold);padding:9px 16px;background:var(--gold-bg);border-radius:0 6px 6px 0;margin:12px 0;color:var(--txt);font-style:italic}
+.md hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+.md strong{color:var(--txt);font-weight:600}.md em{color:var(--gold2)}
+/* internal MD links styled as clickable chips */
+.md a{color:var(--cyan);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.md a.mdlink{color:var(--gold);background:var(--gold-bg);padding:1px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;border:1px solid rgba(240,180,41,.2)}
+.md a.mdlink:hover{background:rgba(240,180,41,.15)}
+
+/* INSIGHT CARDS */
+.ic{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:8px;transition:border .15s}
+.ic:hover{border-color:var(--border2)}
+.ic.logic{border-left:3px solid var(--gold)}.ic.rh{border-left:3px solid var(--red)}.ic.rm{border-left:3px solid #fbbf24}.ic.rl{border-left:3px solid var(--txt3)}
+.ic-hd{display:flex;align-items:flex-start;gap:10px;margin-bottom:6px}
+.ic-ii{font-size:14px;margin-top:1px;flex-shrink:0}
+.ic-tt{font-size:13px;font-weight:600;color:var(--txt);flex:1;line-height:1.4}
+.ic-mt{font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:4px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:var(--mono);padding:2px 8px;border-radius:10px;background:var(--bg4);color:var(--txt3);flex-shrink:0}
+.tag.gold{background:var(--gold-bg);color:var(--gold)}.tag.red{background:var(--red-bg);color:var(--red)}
+
+/* SEARCH */
+.sb{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:0 14px;margin-bottom:18px;transition:border .15s}
+.sb:focus-within{border-color:var(--gold)}
+.sb input{background:none;border:none;flex:1;padding:10px 0;color:var(--txt);font-size:13px;outline:none;font-family:var(--sans)}
+
+/* MD FILE VIEWER MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r-lg);width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.modal-title{font-family:var(--mono);font-size:12px;color:var(--gold);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal-close{background:none;border:none;color:var(--txt3);cursor:pointer;font-size:18px;padding:0 4px;line-height:1}
+.modal-close:hover{color:var(--txt)}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+
+/* CALLOUT BOX */
+.cbox{border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;background:var(--bg2)}
+.cbox.gold{border-color:rgba(240,180,41,.2);background:var(--gold-bg)}
+.cbt{font-size:10px;font-family:var(--mono);color:var(--txt3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.cbox.gold .cbt{color:var(--gold)}
+
+/* SPINNER */
+.spin{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:_sp .6s linear infinite;flex-shrink:0}
+@keyframes _sp{to{transform:rotate(360deg)}}
+
+/* EMPTY */
+.empty{text-align:center;padding:72px 20px}
+.ei{font-size:40px;opacity:.18;margin-bottom:14px}
+.et{font-family:var(--serif);font-size:18px;font-style:italic;color:var(--txt2)}
+.es{font-size:12px;color:var(--txt3);margin-top:6px;max-width:340px;margin-left:auto;margin-right:auto}
+
+/* UTILS */
+.row{display:flex;align-items:center;gap:8px}.col{display:flex;flex-direction:column;gap:8px}
+.flex1{flex:1}.mla{margin-left:auto}.muted{color:var(--txt3)}.small{font-size:12px}.mono{font-family:var(--mono)}
+.tc2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.tc3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:start}
+.mt8{margin-top:8px}.mt14{margin-top:14px}.mt20{margin-top:20px}
+.mb8{margin-bottom:8px}.mb14{margin-bottom:14px}.mb18{margin-bottom:18px}
+.ckrow{display:flex;align-items:center;gap:8px;cursor:pointer}
+.ckrow input{width:auto;cursor:pointer}.ckrow span{font-size:12px;color:var(--txt2)}
+.sl{font-size:9.5px;font-family:var(--mono);color:var(--txt3);text-transform:uppercase;letter-spacing:1.2px;padding:12px 0 6px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useMemo,useCallback} = React;
+const BASE = window.location.origin;
+const post = (u,b)=>fetch(BASE+u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});
+const nowT = ()=>[new Date().getHours(),new Date().getMinutes(),new Date().getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+
+const PHASES=[
+  {id:"connect",         label:"Connect to Salesforce",           icon:"🔗"},
+  {id:"harvest",         label:"Harvest all metadata",            icon:"📦"},
+  {id:"parse_apex",      label:"Parse Apex code",                 icon:"⚙️"},
+  {id:"parse_flows",     label:"Parse Flows & automation",        icon:"⚡"},
+  {id:"parse_ui",        label:"Parse LWC + Aura + VF",           icon:"🖥️"},
+  {id:"parse_rules",     label:"Parse validation rules",          icon:"🛡️"},
+  {id:"parse_processes", label:"Parse approval processes",        icon:"✅"},
+  {id:"reason",          label:"AI deep analysis",                icon:"🧠"},
+  {id:"map_org",         label:"Build intelligence map",          icon:"🗺️"},
+  {id:"write_docs",      label:"Write documentation",             icon:"📝"},
+];
+
+/* ── MD FILE MODAL ───────────────────────────────────────────────────── */
+function MdModal({path, onClose}){
+  const [src, setSrc] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(()=>{
+    if(!path) return;
+    setSrc(null); setErr(null);
+    fetch(`${BASE}/api/file?path=${encodeURIComponent(path)}`)
+      .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+      .then(setSrc)
+      .catch(e=>setErr(e.message));
+  },[path]);
+
+  useEffect(()=>{
+    const handler = e=>{ if(e.key==="Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return ()=>window.removeEventListener("keydown", handler);
+  },[onClose]);
+
+  if(!path) return null;
+  const fname = path.split("/").pop();
+  return(
+    <div className="modal-overlay" onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      <div className="modal">
+        <div className="modal-head">
+          <span className="modal-title">📄 {fname}</span>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          {!src && !err && <div className="row muted small"><div className="spin"/><span>Loading…</span></div>}
+          {err && <div className="alert aerr"><span>✗</span><span>Could not load file: {err}</span></div>}
+          {src && <MdView src={src} onMdLink={()=>{}} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── MARKDOWN RENDERER — intercepts #mdlink: hrefs ───────────────────── */
+function MdView({src, onMdLink}){
+  const ref = useRef(null);
+  const html = useMemo(()=>{
+    if(!src) return "";
+    return marked.parse(src,{gfm:true,breaks:true});
+  },[src]);
+
+  useEffect(()=>{
+    if(!ref.current) return;
+    // Style and intercept internal mdlinks
+    const links = ref.current.querySelectorAll('a[href^="#mdlink:"]');
+    links.forEach(a=>{
+      a.classList.add("mdlink");
+      a.addEventListener("click", e=>{
+        e.preventDefault();
+        const raw = a.getAttribute("href").replace("#mdlink:","");
+        // raw = "path/to/file.md" or "path/to/file.md:anchor"
+        const [filePath] = raw.split(":");
+        if(onMdLink) onMdLink(filePath);
+      });
+    });
+    // Open external links in new tab, prevent SPA navigation
+    const extLinks = ref.current.querySelectorAll('a[href^="http"]');
+    extLinks.forEach(a=>{ a.setAttribute("target","_blank"); a.setAttribute("rel","noopener"); });
+    // Prevent ALL other link clicks from navigating away
+    const allLinks = ref.current.querySelectorAll('a:not([href^="#mdlink:"]):not([href^="http"]):not([href^="https"])');
+    allLinks.forEach(a=>{
+      a.addEventListener("click", e=>{
+        e.preventDefault();
+        const href = a.getAttribute("href")||"";
+        if(href && !href.startsWith("#") && onMdLink) onMdLink(href);
+      });
+    });
+  },[html, onMdLink]);
+
+  if(!src) return <div className="muted small" style={{padding:"18px 0"}}>No content.</div>;
+  return <div className="md" ref={ref} dangerouslySetInnerHTML={{__html:html}}/>;
+}
+
+const Spin = ()=><div className="spin"/>;
+
+/* ── ROOT APP ─────────────────────────────────────────────────────────── */
+function App(){
+  const [page,    setPage]    = useState("setup");
+  const [job,     setJob]     = useState(null);
+  const [results, setResults] = useState(null);
+  const [mdModal, setMdModal] = useState(null); // path string or null
+
+  // Shared config — lifted to root so it survives page switches
+  const [sf,  setSf]  = useState({instance_url:"",auth:"B",username:"",password:"",security_token:"",client_id:"",client_secret:"",private_key_file:"",api_version:"61.0"});
+  const [llm, setLlm] = useState({provider:"openai",model:"gpt-4o",api_key:"",max_tokens:4096,verify_ssl:false});
+  const [opts,setOpts]= useState({output_dir:"output/docs",cache:true,org_name:"My Salesforce Org"});
+
+  const running = job?.status==="running";
+  const done    = job?.status==="done";
+  const err     = job?.status==="error";
+
+  // Intercept browser back/forward — keep user inside SPA
+  useEffect(()=>{
+    window.history.pushState({page:"setup"},"","");
+    const handler = ()=>{ window.history.pushState({page},"",""); };
+    window.addEventListener("popstate", handler);
+    return ()=>window.removeEventListener("popstate", handler);
+  },[]);
+
+  const openMd = useCallback(path=>setMdModal(path),[]);
+
+  const SIDE=[
+    {id:"setup",   ic:"⚙️", lbl:"Configuration"},
+    {id:"run",     ic:"▶️", lbl:"Run Pipeline",  badge:running?"LIVE":null},
+    {id:"results", ic:"📊", lbl:"View Results",  badge:results?(results.stats?.analyzed||null):null},
+    null,
+    {id:"hidden",  ic:"⚡", lbl:"Hidden Logic",   locked:!results},
+    {id:"risks",   ic:"⚠️", lbl:"Risk Register",  locked:!results},
+    {id:"integ",   ic:"🔌", lbl:"Integrations",   locked:!results},
+    {id:"objects", ic:"○",  lbl:"Data Model",     locked:!results},
+  ];
+
+  return(
+    <div className="shell">
+      <header className="topbar">
+        <div className="logo-icon">SF</div>
+        <div className="logo-text">Salesforce <span>Org Intelligence</span></div>
+        <div className="topbar-sub">automated documentation & analysis</div>
+        <div className="topbar-right">
+          {running&&<div className="status-pill running"><div className="pdot gold"/>Pipeline running…</div>}
+          {done   &&<div className="status-pill done"><div className="pdot green"/>Analysis complete</div>}
+          {err    &&<div className="status-pill error"><div className="pdot red"/>Run failed</div>}
+        </div>
+      </header>
+      <div className="workspace">
+        <nav className="sidebar">
+          <div className="sbl">Workflow</div>
+          {SIDE.map((n,i)=>n===null
+            ?<div key={i} style={{height:1,background:"var(--border)",margin:"8px 0"}}/>
+            :<div key={n.id} className={`nav ${page===n.id?"on":""}`}
+               style={{opacity:n.locked?.4:1,cursor:n.locked?"default":"pointer"}}
+               onClick={()=>!n.locked&&setPage(n.id)}>
+              <span className="nav-ic">{n.ic}</span><span>{n.lbl}</span>
+              {n.badge&&<span className="nbadge">{n.badge}</span>}
+            </div>
+          )}
+          <div className="sfooter">
+            <div className="sfchip">🔒 local only</div><br/>
+            <div className="sfchip">no data leaves your machine</div>
+          </div>
+        </nav>
+        <main className="content">
+          {page==="setup"  &&<SetupPage sf={sf} setSf={setSf} llm={llm} setLlm={setLlm} opts={opts} setOpts={setOpts} onNext={()=>setPage("run")}/>}
+          {page==="run"    &&<RunPage sf={sf} llm={llm} opts={opts} job={job} setJob={setJob} setResults={setResults} onResults={()=>setPage("results")}/>}
+          {page==="results"&&<ResultsPage results={results} onMdLink={openMd}/>}
+          {page==="hidden" &&<HLPage results={results} onMdLink={openMd}/>}
+          {page==="risks"  &&<RiskPage results={results} onMdLink={openMd}/>}
+          {page==="integ"  &&<IntegPage results={results} onMdLink={openMd}/>}
+          {page==="objects"&&<ObjPage results={results} onMdLink={openMd}/>}
+        </main>
+      </div>
+      {mdModal && <MdModal path={mdModal} onClose={()=>setMdModal(null)}/>}
+    </div>
+  );
+}
+
+/* ── SETUP PAGE ─────────────────────────────────────────────────────── */
+function SetupPage({sf,setSf,llm,setLlm,opts,setOpts,onNext}){
+  const [step,setStep]=useState(0);
+  const [sfSt,setSfSt]=useState(null);
+  const [llmSt,setLlmSt]=useState(null);
+  const [sfTest,setSfTest]=useState(false);
+  const [llmTest,setLlmTest]=useState(false);
+  const sfS=(k,v)=>setSf(p=>({...p,[k]:v}));
+  const llmS=(k,v)=>setLlm(p=>({...p,[k]:v}));
+  const MODELS={anthropic:["claude-sonnet-4-6","claude-opus-4-6","claude-haiku-4-5"],openai:["gpt-4o","gpt-4o-mini","gpt-4-turbo","gpt-3.5-turbo"],azure:["gpt-4o","gpt-4-turbo","gpt-35-turbo"],google:["gemini-1.5-pro","gemini-1.5-flash","gemini-2.0-flash"],ollama:["llama3.1","mistral","qwen2.5","codellama","phi3"]};
+  const KEY_URLS={anthropic:"console.anthropic.com → API Keys",openai:"platform.openai.com → API Keys",azure:"Azure Portal → Azure OpenAI → Keys & Endpoint",google:"aistudio.google.com → Get API Key"};
+
+  const testSf=async()=>{
+    setSfTest(true);setSfSt(null);
+    const p={instance_url:sf.instance_url,api_version:sf.api_version,
+      ...(sf.auth==="A"?{username:sf.username,password:sf.password,security_token:sf.security_token}:{}),
+      ...(sf.auth==="B"?{client_id:sf.client_id,client_secret:sf.client_secret}:{}),
+      ...(sf.auth==="C"?{client_id:sf.client_id,username:sf.username,private_key_file:sf.private_key_file}:{})};
+    try{const r=await post("/api/test-salesforce",p);const d=await r.json();setSfSt({ok:d.ok,msg:d.ok?`✓ Connected — ${d.instance_url}`:d.error});}
+    catch(e){setSfSt({ok:false,msg:e.message});}
+    setSfTest(false);
+  };
+  const testLlm=async()=>{
+    setLlmTest(true);setLlmSt(null);
+    try{const r=await post("/api/test-llm",llm);const d=await r.json();setLlmSt({ok:d.ok,msg:d.ok?`✓ ${llm.provider} connected`:d.error});}
+    catch(e){setLlmSt({ok:false,msg:e.message});}
+    setLlmTest(false);
+  };
+
+  return(
+    <div className="page">
+      <div className="ph"><div className="pt">Configure <em>your</em> connection</div><div className="pc">Set up Salesforce credentials and AI provider — no coding needed</div></div>
+      <div className="stepbar">
+        {["Salesforce","AI Provider","Options"].map((s,i)=>(
+          <div key={i} className={`step ${step===i?"active":step>i?"done":""}`} onClick={()=>setStep(i)}>
+            <div className="snum">{step>i?"✓":i+1}</div><div className="slbl">{s}</div>
+          </div>
+        ))}
+      </div>
+
+      {step===0&&<>
+        <div className="card">
+          <div className="ch"><div className="chi">☁️</div><div><div className="cht">Salesforce Org URL</div><div className="chs">Your My Domain URL — not login.salesforce.com</div></div></div>
+          <div className="cb">
+            <div className="f"><label>Org URL <span className="req">*</span></label><input type="text" value={sf.instance_url} onChange={e=>sfS("instance_url",e.target.value)} placeholder="https://yourcompany.my.salesforce.com"/><div className="fhint">Find in Setup → Company Information → My Domain</div></div>
+          </div>
+        </div>
+        <div className="card mt14">
+          <div className="ch"><div className="chi">🔑</div><div><div className="cht">Authentication Method</div></div></div>
+          <div className="cb">
+            <div className="rg">
+              {[["B","OAuth Connected App","Recommended. Needs a Connected App with Client Credentials Flow + Run As user.","RECOMMENDED"],
+                ["A","Username + Password","Simplest. Good for dev orgs. Needs a security token.","EASIEST"],
+                ["C","JWT Bearer Token","For CI/CD pipelines. Needs RSA key pair.","ADVANCED"]
+              ].map(([v,t,d,b])=>(
+                <label key={v} className={`rc ${sf.auth===v?"on":""}`}>
+                  <input type="radio" name="sfauth" checked={sf.auth===v} onChange={()=>sfS("auth",v)}/>
+                  <div><div className="rt">{t}</div><div className="rd">{d}</div><div className="rbadge">{b}</div></div>
+                </label>
+              ))}
+            </div>
+            {sf.auth==="A"&&<div className="fg fg2 mt20">
+              <div className="f"><label>Username <span className="req">*</span></label><input type="email" value={sf.username} onChange={e=>sfS("username",e.target.value)} placeholder="user@company.com"/></div>
+              <div className="f"><label>Password <span className="req">*</span></label><input type="password" value={sf.password} onChange={e=>sfS("password",e.target.value)} placeholder="••••••••"/></div>
+              <div className="f fspan"><label>Security Token</label><input type="text" value={sf.security_token} onChange={e=>sfS("security_token",e.target.value)} placeholder="From Setup → My Personal Info → Reset Security Token"/></div>
+              <div className="f"><label>API Version</label><input type="text" value={sf.api_version} onChange={e=>sfS("api_version",e.target.value)} placeholder="61.0"/></div>
+            </div>}
+            {sf.auth==="B"&&<div className="fg fg2 mt20">
+              <div className="f"><label>Consumer Key <span className="req">*</span></label><input type="text" value={sf.client_id} onChange={e=>sfS("client_id",e.target.value)} placeholder="3MVG9…"/></div>
+              <div className="f"><label>Consumer Secret <span className="req">*</span></label><input type="password" value={sf.client_secret} onChange={e=>sfS("client_secret",e.target.value)} placeholder="••••••••"/></div>
+              <div className="f"><label>API Version</label><input type="text" value={sf.api_version} onChange={e=>sfS("api_version",e.target.value)} placeholder="61.0"/></div>
+            </div>}
+            {sf.auth==="C"&&<div className="fg fg2 mt20">
+              <div className="f"><label>Consumer Key <span className="req">*</span></label><input type="text" value={sf.client_id} onChange={e=>sfS("client_id",e.target.value)} placeholder="3MVG9…"/></div>
+              <div className="f"><label>Username <span className="req">*</span></label><input type="email" value={sf.username} onChange={e=>sfS("username",e.target.value)} placeholder="user@company.com"/></div>
+              <div className="f fspan"><label>Private Key File <span className="req">*</span></label><input type="text" value={sf.private_key_file||""} onChange={e=>sfS("private_key_file",e.target.value)} placeholder="config/server.key"/></div>
+            </div>}
+          </div>
+        </div>
+        {sfSt&&<div className={`alert mt14 ${sfSt.ok?"aok":"aerr"}`}><span className="aic">{sfSt.ok?"✓":"✗"}</span><span>{sfSt.msg}</span></div>}
+        <div className="row mt20" style={{justifyContent:"space-between"}}>
+          <button className="btn btn-s" onClick={testSf} disabled={sfTest||!sf.instance_url}>{sfTest?<><Spin/>Testing…</>:"🔌 Test Connection"}</button>
+          <button className="btn btn-p" onClick={()=>setStep(1)}>Continue to AI Provider →</button>
+        </div>
+      </>}
+
+      {step===1&&<>
+        <div className="card">
+          <div className="ch"><div className="chi">🧠</div><div><div className="cht">AI Provider</div><div className="chs">Which AI will analyse your Salesforce metadata</div></div></div>
+          <div className="cb">
+            <div className="pg">
+              {[{id:"anthropic",logo:"🟠",name:"Anthropic",tag:"Claude"},{id:"openai",logo:"⚫",name:"OpenAI",tag:"GPT-4o"},{id:"azure",logo:"🔷",name:"Azure",tag:"OpenAI"},{id:"google",logo:"🔵",name:"Google",tag:"Gemini"},{id:"ollama",logo:"🦙",name:"Ollama",tag:"Local"}].map(p=>(
+                <div key={p.id} className={`pt2 ${llm.provider===p.id?"on":""}`} onClick={()=>{llmS("provider",p.id);llmS("model",(MODELS[p.id]||[])[0]||"");}}>
+                  <div className="plogo">{p.logo}</div><div className="pname">{p.name}</div><div className="ptag">{p.tag}</div>
+                </div>
+              ))}
+            </div>
+            {llm.provider!=="ollama"&&<div className="cbox gold mt20"><div className="cbt">Where to get your API key</div><div style={{fontSize:12,color:"var(--txt2)"}}>{KEY_URLS[llm.provider]}</div></div>}
+            <div className="fg fg2 mt20">
+              {llm.provider!=="ollama"&&<div className="f fspan"><label>API Key <span className="req">*</span></label><input type="password" value={llm.api_key} onChange={e=>llmS("api_key",e.target.value)} placeholder="Paste your API key…"/></div>}
+              {llm.provider==="azure"&&<div className="f fspan"><label>Azure Endpoint <span className="req">*</span></label><input type="text" value={llm.azure_endpoint||""} onChange={e=>llmS("azure_endpoint",e.target.value)} placeholder="https://yourresource.openai.azure.com"/></div>}
+              {llm.provider==="ollama"&&<div className="f fspan"><label>Ollama URL</label><input type="text" value={llm.ollama_base_url||"http://localhost:11434"} onChange={e=>llmS("ollama_base_url",e.target.value)} placeholder="http://localhost:11434"/></div>}
+              <div className="f"><label>Model</label><select value={llm.model} onChange={e=>llmS("model",e.target.value)}>{(MODELS[llm.provider]||[]).map(m=><option key={m}>{m}</option>)}</select></div>
+              <div className="f">
+                <label>SSL</label>
+                <label className="ckrow mt8"><input type="checkbox" checked={!!llm.verify_ssl} onChange={e=>llmS("verify_ssl",e.target.checked)}/><span>Enable SSL cert verification (disable for corporate proxy)</span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+        {llmSt&&<div className={`alert mt14 ${llmSt.ok?"aok":"aerr"}`}><span className="aic">{llmSt.ok?"✓":"✗"}</span><span>{llmSt.msg}</span></div>}
+        <div className="row mt20" style={{justifyContent:"space-between"}}>
+          <div className="row">
+            <button className="btn btn-s" onClick={()=>setStep(0)}>← Back</button>
+            <button className="btn btn-s" onClick={testLlm} disabled={llmTest||(llm.provider!=="ollama"&&!llm.api_key)}>{llmTest?<><Spin/>Testing…</>:"🧠 Test AI"}</button>
+          </div>
+          <button className="btn btn-p" onClick={()=>setStep(2)}>Continue →</button>
+        </div>
+      </>}
+
+      {step===2&&<>
+        <div className="card">
+          <div className="ch"><div className="chi">📁</div><div><div className="cht">Output Settings</div></div></div>
+          <div className="cb">
+            <div className="fg fg2">
+              <div className="f"><label>Org Name</label><input type="text" value={opts.org_name} onChange={e=>setOpts(p=>({...p,org_name:e.target.value}))} placeholder="My Salesforce Org"/></div>
+              <div className="f"><label>Output Directory</label><input type="text" value={opts.output_dir} onChange={e=>setOpts(p=>({...p,output_dir:e.target.value}))} placeholder="output/docs"/></div>
+              <div className="f fspan"><label className="ckrow"><input type="checkbox" checked={!!opts.cache} onChange={e=>setOpts(p=>({...p,cache:e.target.checked}))}/><span>Use metadata cache — skip Salesforce API calls if metadata hasn't changed (recommended)</span></label></div>
+            </div>
+          </div>
+        </div>
+        <div className="card mt14">
+          <div className="ch"><div className="chi">📋</div><div><div className="cht">Review Configuration</div></div></div>
+          <div className="cb">
+            <div className="tc3">
+              {[{l:"Salesforce",v:sf.instance_url||"—",s:`Auth: ${{"A":"Username/Password","B":"OAuth (Connected App)","C":"JWT Bearer"}[sf.auth]}`},{l:"AI Provider",v:`${llm.provider} / ${llm.model||"—"}`,s:llm.provider==="ollama"?"No API key needed":llm.api_key?"API key set ✓":"⚠ API key missing"},{l:"Output",v:opts.output_dir,s:`Cache: ${opts.cache?"on":"off"}`}].map(c=>(
+                <div key={c.l} style={{padding:"12px 14px",background:"var(--bg3)",borderRadius:"var(--r)",border:"1px solid var(--border)"}}>
+                  <div style={{fontSize:10,fontFamily:"var(--mono)",color:"var(--txt3)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:5}}>{c.l}</div>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--txt)",wordBreak:"break-all"}}>{c.v}</div>
+                  <div style={{fontSize:11,color:"var(--txt3)",marginTop:3,fontFamily:"var(--mono)"}}>{c.s}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="row mt20" style={{justifyContent:"space-between"}}>
+          <button className="btn btn-s" onClick={()=>setStep(1)}>← Back</button>
+          <button className="btn btn-p" onClick={onNext}>Go to Run Pipeline →</button>
+        </div>
+      </>}
+    </div>
+  );
+}
+
+/* ── RUN PAGE ────────────────────────────────────────────────────────── */
+function RunPage({sf,llm,opts,job,setJob,setResults,onResults}){
+  const [log,    setLog]    = useState([]);
+  // phases: id → "done" | "live" | "wait"
+  const [phases, setPhases] = useState({});
+  const [counts, setCounts] = useState(null);
+  const [elapsed,setElapsed]= useState(null);
+  const logRef = useRef(null);
+  const esRef  = useRef(null);
+  const tmRef  = useRef(null);
+  const ts     = useRef(null);
+  const running = job?.status==="running";
+  const done    = job?.status==="done";
+  const error   = job?.status==="error";
+
+  const doneCount = Object.values(phases).filter(v=>v==="done").length;
+  const pct = done ? 100 : Math.round(doneCount / PHASES.length * 100);
+
+  const addLog=(msg,kind="plain")=>setLog(l=>[...l.slice(-150),{msg,kind,t:nowT()}]);
+  useEffect(()=>{ if(logRef.current) logRef.current.scrollTop=logRef.current.scrollHeight; },[log]);
+
+  const start=async()=>{
+    setLog([]); setPhases({}); setCounts(null); setElapsed(null);
+    ts.current = Date.now();
+
+    const payload={
+      salesforce:{instance_url:sf.instance_url,api_version:sf.api_version,
+        ...(sf.auth==="A"?{username:sf.username,password:sf.password,security_token:sf.security_token}:{}),
+        ...(sf.auth==="B"?{client_id:sf.client_id,client_secret:sf.client_secret}:{}),
+        ...(sf.auth==="C"?{client_id:sf.client_id,username:sf.username,private_key_file:sf.private_key_file}:{})},
+      llm, output_dir:opts.output_dir, cache:opts.cache,
+    };
+    try{
+      const r = await post("/api/run", payload);
+      const {job_id} = await r.json();
+      setJob({id:job_id, status:"running"});
+      addLog("Pipeline started");
+      tmRef.current = setInterval(()=>setElapsed(Math.round((Date.now()-ts.current)/1000)), 1000);
+
+      const es = new EventSource(`${BASE}/api/jobs/${job_id}/stream`);
+      esRef.current = es;
+      es.onmessage = ev=>{
+        const d = JSON.parse(ev.data);
+        if(d.type==="ping") return;
+        if(d.type==="log") addLog(d.msg, d.msg.includes("Error")?"err":d.msg.includes("✓")?"ok":"plain");
+
+        // phase_done → mark that phase green, clear any live on it
+        if(d.type==="phase_done"){
+          setPhases(p=>({...p, [d.name]:"done"}));
+        }
+        // phase_live → mark next phase as running
+        if(d.type==="phase_live"){
+          setPhases(p=>({...p, [d.name]:"live"}));
+        }
+        if(d.type==="harvest"){ setCounts(d.counts); addLog(`Harvested ${d.total} components`,"ok"); }
+        if(d.type==="done"){
+          clearInterval(tmRef.current);
+          setPhases(p=>{ const n={...p}; PHASES.forEach(ph=>{ if(!n[ph.id]) n[ph.id]="done"; }); return n; });
+          setJob(j=>({...j,status:"done",stats:d.stats}));
+          addLog(`✓ Complete in ${d.total_t}s`,"ok");
+          fetch(`${BASE}/api/jobs/${job_id}/result`).then(r=>r.json()).then(res=>{setResults(res);setTimeout(onResults,700);});
+          es.close();
+        }
+        if(d.type==="error"){
+          clearInterval(tmRef.current);
+          setJob(j=>({...j,status:"error",error:d.msg}));
+          addLog(`Error: ${d.msg}`,"err");
+          es.close();
+        }
+      };
+      es.onerror=()=>{ addLog("Stream connection lost","err"); es.close(); clearInterval(tmRef.current); };
+    }catch(e){ addLog(`Failed to start: ${e.message}`,"err"); setJob(j=>({...(j||{}),status:"error"})); }
+  };
+
+  useEffect(()=>()=>{esRef.current?.close(); clearInterval(tmRef.current);},[]);
+
+  return(
+    <div className="page">
+      <div className="ph"><div className="pt">Run <em>the pipeline</em></div><div className="pc">Connect, harvest, analyse, and document your entire Salesforce org</div></div>
+
+      {!running&&!done&&!error&&<div className="cbox gold mb18">
+        <div className="cbt">What will happen</div>
+        <p style={{fontSize:13,color:"var(--txt)",lineHeight:1.6}}>Harvest Apex, Flows, LWC, Aura, Validation Rules, integrations from <strong>{sf.instance_url||"your org"}</strong> → AI analyses every component → writes docs to <code style={{fontSize:11}}>{opts.output_dir}</code></p>
+      </div>}
+
+      <div className="row mb18">
+        {!running
+          ?<button className="btn btn-p" onClick={start} disabled={!sf.instance_url}>{done?"▶ Run Again":"▶ Start Analysis"}</button>
+          :<button className="btn btn-d btn-sm" onClick={()=>{esRef.current?.close();clearInterval(tmRef.current);setJob(j=>({...j,status:"error",error:"Cancelled"}));}}>■ Cancel</button>
+        }
+        {elapsed!=null&&<span className="mono muted small">{elapsed}s elapsed</span>}
+        {done&&<span className="mono small" style={{color:"var(--green)"}}>✓ Complete</span>}
+        {error&&<span className="mono small" style={{color:"var(--red)"}}>✗ {job?.error||"Failed"}</span>}
+      </div>
+
+      {(running||done)&&<div className="mb14">
+        <div className="row mb8"><span className="mono muted" style={{fontSize:10}}>Progress</span><span className="mono" style={{fontSize:10,color:"var(--gold)",marginLeft:"auto"}}>{pct}%</span></div>
+        <div className="ptrack"><div className="pfill" style={{width:`${pct}%`}}/></div>
+      </div>}
+
+      <div className="tc2" style={{gap:16}}>
+        <div>
+          <div className="sl">Pipeline Phases</div>
+          <div className="phl">
+            {PHASES.map(ph=>{
+              const s = phases[ph.id];
+              return(
+                <div key={ph.id} className={`ph-row ${s==="done"?"done":s==="live"?"live":"wait"}`}>
+                  <span className="ph-ic">{s==="done"
+                    ?<span style={{color:"var(--green)"}}>✓</span>
+                    :s==="live"?<Spin/>:ph.icon}
+                  </span>
+                  <span className="ph-nm">{ph.label}</span>
+                  {s==="live"&&<span className="ph-t" style={{color:"var(--gold)"}}>running…</span>}
+                  {s==="done"&&<span className="ph-t" style={{color:"var(--green)"}}>done</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          {counts&&<>
+            <div className="sl">Components Discovered</div>
+            <div className="hgrid">
+              {Object.entries(counts).map(([k,v])=><div key={k} className="htile"><div className="hn">{v}</div><div className="hk">{k}</div></div>)}
+            </div>
+          </>}
+          <div className={`sl ${counts?"mt14":""}`}>Activity Log</div>
+          <div className="log" ref={logRef}>
+            {log.length===0&&<span className="muted">Waiting to start…</span>}
+            {log.map((l,i)=><div key={i} className="ll"><span className="lt">{l.t}</span><span className={`l${l.kind}`}>{l.msg}</span></div>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── RESULTS PAGE ────────────────────────────────────────────────────── */
+function ResultsPage({results, onMdLink}){
+  const [tab,  setTab]  = useState("overview");
+  const [cat,  setCat]  = useState(null);
+  const [ctab, setCtab] = useState("overview");
+  if(!results) return <NoResults/>;
+  const {sections={},categories=[],stats={}}=results;
+  const hc=(sections.hidden||"").split("\n").filter(l=>/^[⚡🔍]/.test(l)).length;
+  const rh=(sections.risks||"").split("\n").filter(l=>/🔴|HIGH/.test(l)).length;
+  const ic=(sections.outbound||"").split("\n").filter(l=>l.startsWith("### `")).length;
+  const SS=[{n:stats.analyzed||"—",l:"Components Analyzed",c:"gold"},{n:stats.files||"—",l:"Doc Files Generated",c:"green"},{n:hc||"—",l:"Hidden Logic Rules",c:"gold"},{n:rh||"—",l:"High-Risk Flags",c:"red"},{n:ic||"—",l:"Integrations Found",c:"cyan"},{n:categories.length||"—",l:"Component Types"}];
+  const TABS=[["overview","Overview"],["components","Components"],["hidden","⚡ Hidden Logic"],["risks","Risks"],["integrations","Integrations"],["objects","Data Model"]];
+  return(
+    <div className="page">
+      <div className="ph"><div className="pt">Org <em>Intelligence</em> Report</div><div className="pc row" style={{gap:8}}>Saved to <code className="mono" style={{fontSize:11,background:"var(--bg3)",padding:"2px 9px",borderRadius:4,color:"var(--gold)"}}>{results.output_dir}</code></div></div>
+      <div className="sgrid">{SS.map(s=><div key={s.l} className="scard"><div className={`sn ${s.c||""}`}>{s.n}</div><div className="sk">{s.l}</div></div>)}</div>
+      <div className="tabs">{TABS.map(([id,l])=><div key={id} className={`tab ${tab===id?"on":""}`} onClick={()=>{setTab(id);setCat(null)}}>{l}</div>)}</div>
+
+      {tab==="overview"&&<MdView src={sections.overview} onMdLink={onMdLink}/>}
+      {tab==="components"&&<div className="tc2" style={{gap:20}}>
+        <div>
+          <div className="sl">Component Categories</div>
+          <div className="cl">
+            {categories.map(c=><div key={c.slug} className={`cr ${cat?.slug===c.slug?"on":""}`} onClick={()=>{setCat(c);setCtab("overview")}}>
+              <span className="crn">{c.name}</span><span className="crc">{c.count}</span>
+            </div>)}
+          </div>
+        </div>
+        <div>
+          {!cat?<div className="empty" style={{paddingTop:40}}><div className="ei" style={{fontSize:28}}>←</div><div className="et" style={{fontSize:15}}>Select a category</div></div>
+          :<>
+            <div className="tabs" style={{marginBottom:16}}>{[["overview","Overview"],["components","All Components"]].map(([id,l])=><div key={id} className={`tab ${ctab===id?"on":""}`} onClick={()=>setCtab(id)}>{l}</div>)}</div>
+            <MdView src={ctab==="overview"?cat.overview:cat.components} onMdLink={onMdLink}/>
+          </>}
+        </div>
+      </div>}
+      {tab==="hidden"&&<><div className="alert ainfo mb14"><span className="aic">⚡</span><div><strong>What is this?</strong> Business rules inside code — never written down until now. Review with your team.</div></div><HLCards src={sections.hidden} onMdLink={onMdLink}/></>}
+      {tab==="risks"&&<RiskCards src={sections.risks} onMdLink={onMdLink}/>}
+      {tab==="integrations"&&<div className="tc2" style={{gap:24}}><div><div className="sl">Outbound</div><MdView src={sections.outbound} onMdLink={onMdLink}/></div><div><div className="sl">Inbound</div><MdView src={sections.inbound} onMdLink={onMdLink}/></div></div>}
+      {tab==="objects"&&<div className="tc2" style={{gap:24}}><div><div className="sl">Object Usage Map</div><MdView src={sections.objects} onMdLink={onMdLink}/></div><div><div className="sl">Callout Map</div><MdView src={sections.callouts} onMdLink={onMdLink}/></div></div>}
+    </div>
+  );
+}
+
+/* ── HIDDEN LOGIC CARDS ─────────────────────────────────────────────── */
+function HLCards({src, onMdLink}){
+  const [q,setQ]=useState("");
+  if(!src) return <MdView src={null} onMdLink={onMdLink}/>;
+  const rules=[];const lines=src.split("\n");let sec="";
+  for(const l of lines){
+    if(l.startsWith("## ")) sec=l.replace("## ","");
+    const m=l.match(/^([⚡🔍]) \*\*(.+?)\*\*/);
+    if(m){const cm=l.match(/Found in: `(.+?)`/);rules.push({icon:m[1],rule:m[2],sec,comp:cm?cm[1]:"",hi:m[1]==="⚡"});}
+  }
+  if(!rules.length) return <MdView src={src} onMdLink={onMdLink}/>;
+  const filtered=q?rules.filter(r=>r.rule.toLowerCase().includes(q.toLowerCase())||r.comp.toLowerCase().includes(q.toLowerCase())||r.sec.toLowerCase().includes(q.toLowerCase())):rules;
+  return<>
+    <div className="sb"><span style={{color:"var(--txt3)"}}>🔍</span><input placeholder={`Search ${rules.length} rules…`} value={q} onChange={e=>setQ(e.target.value)}/>{q&&<button style={{background:"none",border:"none",color:"var(--txt3)",cursor:"pointer",fontSize:14}} onClick={()=>setQ("")}>✕</button>}</div>
+    <div className="row mb14" style={{flexWrap:"wrap",gap:8}}>
+      <span className="mono muted small">{filtered.length} rules</span>
+      <span className="tag gold">⚡ High confidence: {rules.filter(r=>r.hi).length}</span>
+      <span className="tag">🔍 Inferred: {rules.filter(r=>!r.hi).length}</span>
+    </div>
+    {filtered.map((r,i)=><div key={i} className="ic logic">
+      <div className="ic-hd"><span className="ic-ii">{r.icon}</span><span className="ic-tt">{r.rule}</span><span className={`tag ${r.hi?"gold":""}`}>{r.hi?"High confidence":"Inferred"}</span></div>
+      <div className="ic-mt">{r.sec&&<span style={{marginRight:12}}>📂 {r.sec}</span>}{r.comp&&<span>🔧 {r.comp}</span>}</div>
+    </div>)}
+  </>;
+}
+
+/* ── RISK CARDS ─────────────────────────────────────────────────────── */
+function RiskCards({src, onMdLink}){
+  const [f,setF]=useState("ALL");
+  if(!src) return <MdView src={null} onMdLink={onMdLink}/>;
+  const risks=[];const lines=src.split("\n");let sev="LOW";
+  for(const l of lines){
+    if(l.includes("HIGH")&&!l.startsWith("|")) sev="HIGH";
+    else if(l.includes("MEDIUM")&&!l.startsWith("|")) sev="MEDIUM";
+    else if(l.includes("LOW")&&!l.includes("MEDIUM")&&!l.startsWith("|")) sev="LOW";
+    const m=l.match(/^\| `(.+?)` \| (.+?) \| (.+?) \|/);
+    if(m) risks.push({comp:m[1],type:m[2],flag:m[3],sev});
+  }
+  if(!risks.length) return <MdView src={src} onMdLink={onMdLink}/>;
+  const cnt={HIGH:0,MEDIUM:0,LOW:0};risks.forEach(r=>cnt[r.sev]++);
+  const filt=f==="ALL"?risks:risks.filter(r=>r.sev===f);
+  return<>
+    <div className="row mb18" style={{flexWrap:"wrap",gap:8}}>
+      {["ALL","HIGH","MEDIUM","LOW"].map(s=><button key={s} className={`btn btn-sm ${f===s?"btn-p":"btn-s"}`} onClick={()=>setF(s)}>
+        {s==="ALL"?`All (${risks.length})`:`${s==="HIGH"?"🔴":s==="MEDIUM"?"🟡":"🟢"} ${s} (${cnt[s]})`}
+      </button>)}
+    </div>
+    {filt.map((r,i)=><div key={i} className={`ic ${r.sev==="HIGH"?"rh":r.sev==="MEDIUM"?"rm":"rl"}`}>
+      <div className="ic-hd"><span className="ic-ii">{r.sev==="HIGH"?"🔴":r.sev==="MEDIUM"?"🟡":"🟢"}</span><span className="ic-tt">{r.flag}</span><span className={`tag ${r.sev==="HIGH"?"red":""}`}>{r.sev}</span></div>
+      <div className="ic-mt"><span>🔧 {r.comp}</span>{r.type&&r.type!=="—"&&<span style={{marginLeft:12}}>· {r.type}</span>}</div>
+    </div>)}
+  </>;
+}
+
+/* ── SIDEBAR DEEP PAGES ─────────────────────────────────────────────── */
+const NoResults=()=><div className="page"><div className="empty"><div className="ei">📊</div><div className="et">No results yet</div><div className="es">Run the pipeline first — results will appear here</div></div></div>;
+function HLPage({results,onMdLink}){if(!results)return<NoResults/>;return<div className="page"><div className="ph"><div className="pt">⚡ <em>Hidden Logic</em></div><div className="pc">Business rules surfaced from code — never written down until now</div></div><div className="alert ainfo mb14"><span className="aic">ℹ️</span><div><strong>⚡ High confidence</strong> — very likely correct. <strong>🔍 Inferred</strong> — verify with business team.</div></div><HLCards src={results.sections?.hidden} onMdLink={onMdLink}/></div>;}
+function RiskPage({results,onMdLink}){if(!results)return<NoResults/>;return<div className="page"><div className="ph"><div className="pt">⚠️ <em>Risk Register</em></div><div className="pc">Technical issues flagged during analysis</div></div><RiskCards src={results.sections?.risks} onMdLink={onMdLink}/></div>;}
+function IntegPage({results,onMdLink}){if(!results)return<NoResults/>;const s=results.sections||{};return<div className="page"><div className="ph"><div className="pt"><em>Integration</em> Landscape</div><div className="pc">Every external system this org connects to</div></div><div className="tc2" style={{gap:28}}><div><div className="sl">Outbound — This org calls out to</div><MdView src={s.outbound} onMdLink={onMdLink}/></div><div><div className="sl">Inbound — External systems call this org</div><MdView src={s.inbound} onMdLink={onMdLink}/></div></div></div>;}
+function ObjPage({results,onMdLink}){if(!results)return<NoResults/>;const s=results.sections||{};return<div className="page"><div className="ph"><div className="pt">Data <em>Model</em> Map</div><div className="pc">Which components read and write which objects</div></div><div className="tc2" style={{gap:28}}><div><div className="sl">Object Usage Map</div><MdView src={s.objects} onMdLink={onMdLink}/></div><div><div className="sl">Callout Map</div><MdView src={s.callouts} onMdLink={onMdLink}/></div></div></div>;}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+</script>
+</body>
+</html>

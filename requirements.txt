@@ -1,0 +1,31 @@
+# ── Core AI & Orchestration ────────────────────────────────────────
+anthropic>=0.40.0
+langgraph>=0.2.0          # Agent pipeline orchestration (state machine)
+langchain-core>=0.3.0     # LangGraph dependency
+langchain-anthropic>=0.3.0
+
+# ── Salesforce ─────────────────────────────────────────────────────
+simple-salesforce>=1.12.5
+
+# ── Data & Parsing ─────────────────────────────────────────────────
+pydantic>=2.9.0
+networkx>=3.4.0           # Apex call graph
+lxml>=5.3.0               # Fast Flow XML parsing
+xmltodict>=0.14.2         # Flow XML → dict
+
+# ── MkDocs Output ──────────────────────────────────────────────────
+mkdocs>=1.6.0             # Static site generator
+mkdocs-material>=9.5.0    # Beautiful Material theme
+pymdown-extensions>=10.9  # Mermaid diagram support in MkDocs
+
+# ── CLI & Terminal ─────────────────────────────────────────────────
+rich>=13.9.0              # Beautiful terminal output with progress bars
+click>=8.1.7              # CLI interface
+pyyaml>=6.0.2             # Config parsing
+
+# ── Output ─────────────────────────────────────────────────────────
+jinja2>=3.1.4             # Markdown template rendering
+
+# ── Testing ────────────────────────────────────────────────────────
+pytest>=8.3.0
+pytest-asyncio>=0.24.0

@@ -1,0 +1,88 @@
+# ============================================================
+# Salesforce Org Intelligence Agent — Configuration
+# Copy to config.yaml and fill in your values.
+# Run: python main.py setup  for an interactive wizard.
+# ============================================================
+
+# ── Salesforce Connection ────────────────────────────────────
+salesforce:
+  instance_url: "https://your-org.my.salesforce.com"
+
+  # METHOD A: Username + Password  (simplest)
+  username: "integration-user@yourcompany.com"
+  password: "YourPassword"
+  security_token: "YourSecurityToken"   # Setup > My Personal Info > Reset Token
+
+  # METHOD B: OAuth Connected App  (uncomment, comment out A)
+  # client_id: "3MVG9...ConsumerKey"
+  # client_secret: "ABC123...ConsumerSecret"
+
+  # METHOD C: JWT Bearer  (uncomment, comment out A)
+  # client_id: "3MVG9...ConsumerKey"
+  # username:  "integration-user@yourcompany.com"
+  # private_key_file: "config/server.key"
+
+  api_version: "61.0"
+
+
+# ── LLM Provider ─────────────────────────────────────────────
+# Choose ONE provider block below and delete/comment the others.
+
+# ── OPTION 1: Anthropic Claude (default) ────────────────────
+llm:
+  provider: anthropic
+  api_key: "sk-ant-api03-..."           # console.anthropic.com
+  model: "claude-sonnet-4-6"            # or claude-opus-4-6, claude-haiku-4-5
+  max_tokens: 4096
+  verify_ssl: false                     # set true if you have valid SSL certs
+
+# ── OPTION 2: OpenAI ────────────────────────────────────────
+# llm:
+#   provider: openai
+#   api_key: "sk-..."                   # platform.openai.com/api-keys
+#   model: "gpt-4o"                     # or gpt-4-turbo, gpt-4o-mini, gpt-3.5-turbo
+#   max_tokens: 4096
+#   verify_ssl: false
+
+# ── OPTION 3: Azure OpenAI ──────────────────────────────────
+# llm:
+#   provider: azure
+#   api_key: "your-azure-openai-key"
+#   model: "gpt-4o"                     # your deployment name in Azure
+#   azure_endpoint: "https://yourresource.openai.azure.com"
+#   azure_api_version: "2024-02-01"
+#   max_tokens: 4096
+#   verify_ssl: false
+
+# ── OPTION 4: Google Gemini ─────────────────────────────────
+# llm:
+#   provider: google
+#   api_key: "AIza..."                  # aistudio.google.com/app/apikey
+#   model: "gemini-1.5-pro"             # or gemini-1.5-flash, gemini-2.0-flash
+#   max_tokens: 4096
+#   verify_ssl: false
+
+# ── OPTION 5: Ollama (local, no API key needed) ─────────────
+# Requires Ollama running locally: https://ollama.ai
+# Pull a model first: ollama pull llama3.1
+# llm:
+#   provider: ollama
+#   model: "llama3.1"                   # or mistral, qwen2.5, codellama, phi3
+#   ollama_base_url: "http://localhost:11434"
+#   max_tokens: 4096
+
+
+# ── Crawl Settings ───────────────────────────────────────────
+crawl:
+  metadata_types: "all"      # or list: ["ApexClass", "Flow", "LightningComponentBundle"]
+  parallel_requests: 3
+  requests_per_second: 5
+  enable_cache: true
+  cache_dir: ".cache/metadata"
+
+# ── Output Settings ──────────────────────────────────────────
+output:
+  output_dir: "output/docs"
+  format: "markdown"
+  include_diagrams: true
+  include_raw_excerpts: false

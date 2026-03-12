@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Salesforce Org Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0b0d;--bg2:#0f1115;--bg3:#161820;--bg4:#1d1f26;
+  --border:#252830;--border2:#2e3140;
+  --text:#e8eaf0;--text2:#9ba3b8;--text3:#5c6480;
+  --accent:#4f8eff;--accent2:#7b61ff;--accent-dim:#1a2540;
+  --green:#2ecc71;--green-dim:#0d2a1c;
+  --orange:#f39c12;--orange-dim:#2a1e0a;
+  --red:#e74c3c;--red-dim:#2a0e0a;
+  --yellow:#f1c40f;--yellow-dim:#2a2205;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'DM Sans',sans-serif;
+  --display:'Fraunces',serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+#root{height:100%;display:flex;flex-direction:column}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* LAYOUT */
+.app{display:grid;grid-template-columns:240px 1fr;grid-template-rows:56px 1fr;height:100vh;overflow:hidden}
+.topbar{grid-column:1/-1;display:flex;align-items:center;padding:0 20px;background:var(--bg2);border-bottom:1px solid var(--border);gap:12px;z-index:10}
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.main{overflow-y:auto;background:var(--bg)}
+
+/* TOPBAR */
+.logo{font-family:var(--display);font-size:18px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+.logo span{color:var(--accent)}
+.topbar-badge{font-family:var(--mono);font-size:10px;background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:3px;border:1px solid var(--accent);opacity:0.8}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+/* SIDEBAR */
+.sidebar-section{padding:16px 12px 8px;font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;border-left:2px solid transparent;user-select:none}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);border-left-color:var(--accent)}
+.nav-item .icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;font-family:var(--mono);font-size:10px;background:var(--bg4);color:var(--text3);padding:1px 6px;border-radius:10px}
+.nav-badge.active{background:var(--accent-dim);color:var(--accent)}
+
+/* PANELS */
+.page{padding:24px;max-width:1100px}
+.page-header{margin-bottom:28px}
+.page-title{font-family:var(--display);font-size:26px;font-weight:300;color:var(--text);letter-spacing:-0.5px;line-height:1.2}
+.page-title em{font-style:italic;color:var(--accent)}
+.page-subtitle{color:var(--text2);font-size:13px;margin-top:6px}
+
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.card-title{font-size:12px;font-family:var(--mono);color:var(--text2);letter-spacing:.5px;text-transform:uppercase}
+.card-body{padding:18px}
+
+/* FORMS */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid.cols-1{grid-template-columns:1fr}
+.form-grid.cols-3{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.full{grid-column:1/-1}
+label{font-size:11px;font-family:var(--mono);color:var(--text3);letter-spacing:.5px;text-transform:uppercase}
+input,select{background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:8px 12px;font-family:var(--mono);font-size:12px;outline:none;transition:border .15s;width:100%}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-dim)}
+input::placeholder{color:var(--text3)}
+select option{background:var(--bg3)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:5px;border:none;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:500;transition:all .15s;user-select:none}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#3a7de8;transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,142,255,.3)}
+.btn-primary:active{transform:none}
+.btn-primary:disabled{background:var(--border2);color:var(--text3);cursor:not-allowed;transform:none;box-shadow:none}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* STATUS INDICATORS */
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot-orange{background:var(--orange);box-shadow:0 0 6px var(--orange)}
+.dot-red{background:var(--red);box-shadow:0 0 6px var(--red)}
+.dot-blue{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.dot-grey{background:var(--text3)}
+.dot-pulse{animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px;gap:0}
+.tab{padding:10px 18px;cursor:pointer;color:var(--text3);font-size:13px;border-bottom:2px solid transparent;transition:all .15s;user-select:none}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* CHIPS */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:500;border:1px solid}
+.chip-blue{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
+.chip-green{background:var(--green-dim);color:var(--green);border-color:var(--green)}
+.chip-orange{background:var(--orange-dim);color:var(--orange);border-color:var(--orange)}
+.chip-red{background:var(--red-dim);color:var(--red);border-color:var(--red)}
+.chip-grey{background:var(--bg4);color:var(--text3);border-color:var(--border2)}
+
+/* PROGRESS */
+.progress-track{background:var(--bg3);border-radius:99px;height:4px;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .4s ease;position:relative}
+.progress-bar::after{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2)}
+
+/* LOG */
+.log-pane{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:14px;font-family:var(--mono);font-size:11px;line-height:1.8;max-height:240px;overflow-y:auto;color:var(--text2)}
+.log-line{display:flex;gap:8px}
+.log-time{color:var(--text3);flex-shrink:0}
+.log-success{color:var(--green)}
+.log-error{color:var(--red)}
+.log-info{color:var(--text2)}
+
+/* PHASE TRACKER */
+.phases{display:flex;flex-direction:column;gap:6px}
+.phase-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:5px;background:var(--bg3);border:1px solid var(--border)}
+.phase-row.done{border-color:var(--green-dim);background:rgba(46,204,113,.05)}
+.phase-row.active{border-color:var(--accent);background:var(--accent-dim);animation:phasePulse 2s ease-in-out infinite}
+.phase-row.pending{opacity:.4}
+@keyframes phasePulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px rgba(79,142,255,.15)}}
+.phase-name{font-size:12px;font-family:var(--mono);flex:1;color:var(--text2)}
+.phase-row.done .phase-name{color:var(--text)}
+.phase-row.active .phase-name{color:var(--accent)}
+.phase-elapsed{font-size:11px;color:var(--text3);font-family:var(--mono)}
+
+/* STAT GRID */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:14px;text-align:center}
+.stat-value{font-family:var(--display);font-size:28px;font-weight:600;color:var(--text);line-height:1}
+.stat-label{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:6px;letter-spacing:.5px;text-transform:uppercase}
+.stat-value.accent{color:var(--accent)}
+.stat-value.green{color:var(--green)}
+.stat-value.orange{color:var(--orange)}
+.stat-value.red{color:var(--red)}
+
+/* RESULT TABLES */
+.result-table{width:100%;border-collapse:collapse;font-size:12px}
+.result-table th{text-align:left;padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.5px;border-bottom:1px solid var(--border);text-transform:uppercase}
+.result-table td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+.result-table tr:hover td{background:var(--bg3);color:var(--text)}
+.result-table code{font-family:var(--mono);font-size:11px;background:var(--bg3);padding:1px 6px;border-radius:3px;color:var(--accent)}
+
+/* MARKDOWN */
+.md-content{font-size:13px;line-height:1.75;color:var(--text2)}
+.md-content h1,.md-content h2{font-family:var(--display);font-weight:300;color:var(--text);margin:20px 0 10px;letter-spacing:-.3px}
+.md-content h1{font-size:22px}.md-content h2{font-size:17px}
+.md-content h3{font-size:13px;font-family:var(--mono);color:var(--accent);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.5px}
+.md-content p{margin-bottom:10px}
+.md-content code{font-family:var(--mono);font-size:11px;background:var(--bg3);padding:2px 6px;border-radius:3px;color:var(--accent)}
+.md-content pre{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:14px;overflow-x:auto;margin:12px 0}
+.md-content pre code{background:none;padding:0;color:var(--text2)}
+.md-content table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+.md-content th{text-align:left;padding:7px 12px;border-bottom:2px solid var(--border2);font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.md-content td{padding:7px 12px;border-bottom:1px solid var(--border);color:var(--text2)}
+.md-content tr:hover td{background:var(--bg3)}
+.md-content ul,.md-content ol{padding-left:18px;margin-bottom:10px}
+.md-content li{margin:3px 0}
+.md-content blockquote{border-left:3px solid var(--accent);padding:8px 14px;background:var(--accent-dim);border-radius:0 4px 4px 0;margin:10px 0;font-style:italic;color:var(--text)}
+.md-content hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+.md-content strong{color:var(--text);font-weight:600}
+.md-content a{color:var(--accent);text-decoration:none}
+.md-content a:hover{text-decoration:underline}
+
+/* ALERT */
+.alert{padding:12px 16px;border-radius:6px;font-size:13px;border:1px solid;margin-bottom:12px}
+.alert-success{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.alert-error{background:var(--red-dim);border-color:var(--red);color:var(--red)}
+.alert-info{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.alert-warning{background:var(--orange-dim);border-color:var(--orange);color:var(--orange)}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:20px 0}
+
+/* MISC */
+.mono{font-family:var(--mono)}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flex{display:flex;align-items:center}
+.gap-8{gap:8px}.gap-12{gap:12px}
+.flex-1{flex:1}
+.text-muted{color:var(--text3)}
+.text-sm{font-size:12px}
+.mt-4{margin-top:4px}.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-20{margin-top:20px}
+.mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}
+.hidden{display:none}
+
+/* SPINNER */
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.4}
+.empty-text{font-family:var(--display);font-size:16px;font-weight:300;color:var(--text2)}
+.empty-sub{font-size:12px;margin-top:6px}
+
+/* ACCORDION */
+.accordion-item{border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:6px}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--bg2);transition:background .15s}
+.accordion-header:hover{background:var(--bg3)}
+.accordion-title{font-family:var(--mono);font-size:12px;color:var(--text);flex:1}
+.accordion-body{padding:16px;border-top:1px solid var(--border);background:var(--bg)}
+.accordion-arrow{color:var(--text3);font-size:10px;transition:transform .2s}
+.accordion-arrow.open{transform:rotate(90deg)}
+
+/* SECTION HEADER */
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-title{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:1px;text-transform:uppercase}
+
+/* CONNECTION TEST RESULT */
+.conn-result{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:5px;border:1px solid;font-size:12px;font-family:var(--mono)}
+
+/* RADIO GROUP */
+.radio-group{display:flex;flex-direction:column;gap:8px}
+.radio-option{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:5px;cursor:pointer;transition:all .15s}
+.radio-option:hover{border-color:var(--border2);background:var(--bg3)}
+.radio-option.selected{border-color:var(--accent);background:var(--accent-dim)}
+.radio-option input{margin-top:2px;accent-color:var(--accent)}
+.radio-label{font-size:13px;color:var(--text);font-weight:500}
+.radio-desc{font-size:11px;color:var(--text3);margin-top:2px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState, useEffect, useRef, useCallback} = React;
+const API = window.location.origin;
+
+// ── ICONS (inline SVG as text) ─────────────────────────────────────
+const Icon = ({name, size=14}) => {
+  const icons = {
+    home: '⌂', settings: '⚙', run: '▶', results: '◈', docs: '⊟',
+    sf: '☁', llm: '◉', check: '✓', error: '✗', warn: '⚠',
+    apex: '{ }', flow: '⟳', lwc: '⬡', rule: '◆', process: '◈',
+    integration: '⇄', object: '○', hidden: '⚡', risk: '⚠',
+    download: '⬇', refresh: '↺', chevron: '›', info: 'ℹ',
+    copy: '⎘', link: '⤴',
+  };
+  return <span style={{fontSize:size}}>{icons[name]||'·'}</span>;
+};
+
+// ── MARKDOWN RENDERER ──────────────────────────────────────────────
+const Markdown = ({content}) => {
+  if (!content) return <div className="text-muted text-sm">No content</div>;
+  const html = marked.parse(content, {breaks:true, gfm:true});
+  return <div className="md-content" dangerouslySetInnerHTML={{__html:html}}/>;
+};
+
+// ── PHASE DEFINITIONS ──────────────────────────────────────────────
+const PHASES = [
+  {id:'connect',         label:'Connect to Salesforce',  icon:'sf'},
+  {id:'harvest',         label:'Harvest metadata',        icon:'⬇'},
+  {id:'parse_apex',      label:'Parse Apex code',         icon:'apex'},
+  {id:'parse_flows',     label:'Parse Flows',             icon:'flow'},
+  {id:'parse_ui',        label:'Parse UI components',     icon:'lwc'},
+  {id:'parse_rules',     label:'Parse Rules',             icon:'rule'},
+  {id:'parse_processes', label:'Parse Processes',         icon:'process'},
+  {id:'reason',          label:'AI analysis',             icon:'llm'},
+  {id:'map_org',         label:'Build org map',           icon:'◉'},
+  {id:'write_docs',      label:'Write documentation',     icon:'docs'},
+];
+
+// ── MAIN APP ───────────────────────────────────────────────────────
+function App() {
+  const [page, setPage] = useState('configure');
+  const [sfConfig, setSfConfig] = useState({
+    instance_url:'', username:'', password:'', security_token:'',
+    client_id:'', client_secret:'', api_version:'61.0', auth_method:'B'
+  });
+  const [llmConfig, setLlmConfig] = useState({
+    provider:'openai', api_key:'', model:'gpt-4o', max_tokens:4096, verify_ssl:false
+  });
+  const [outputDir, setOutputDir] = useState('output/docs');
+  const [enableCache, setEnableCache] = useState(true);
+  const [orgName, setOrgName] = useState('My Org');
+  const [job, setJob] = useState(null);        // current running job
+  const [results, setResults] = useState(null); // last completed results
+  const [sfTestResult, setSfTestResult] = useState(null);
+  const [llmTestResult, setLlmTestResult] = useState(null);
+  const [sfTesting, setSfTesting] = useState(false);
+  const [llmTesting, setLlmTesting] = useState(false);
+
+  const navItems = [
+    {id:'configure', label:'Configure',  icon:'settings'},
+    {id:'run',       label:'Run',        icon:'run',     badge: job?.status==='running'?'LIVE':null},
+    {id:'results',   label:'Results',    icon:'results', badge: results ? Object.keys(results.categories||{}).length : null},
+  ];
+
+  return (
+    <div className="app">
+      {/* TOPBAR */}
+      <header className="topbar">
+        <div className="logo">SF<span>Org</span>Intel</div>
+        <span className="topbar-badge">v2.0</span>
+        <div className="topbar-right">
+          {job?.status==='running' && (
+            <div className="flex gap-8">
+              <div className="dot dot-blue dot-pulse"/>
+              <span className="mono" style={{fontSize:11,color:'var(--accent)'}}>Pipeline running…</span>
+            </div>
+          )}
+          {job?.status==='done' && (
+            <div className="flex gap-8">
+              <div className="dot dot-green"/>
+              <span className="mono" style={{fontSize:11,color:'var(--green)'}}>Analysis complete</span>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* SIDEBAR */}
+      <nav className="sidebar">
+        <div className="sidebar-section">Navigation</div>
+        {navItems.map(n => (
+          <div key={n.id} className={`nav-item ${page===n.id?'active':''}`}
+               onClick={()=>setPage(n.id)}>
+            <span className="icon"><Icon name={n.icon}/></span>
+            <span>{n.label}</span>
+            {n.badge && <span className={`nav-badge ${page===n.id?'active':''}`}>{n.badge}</span>}
+          </div>
+        ))}
+
+        <div style={{marginTop:'auto',padding:'16px 12px',borderTop:'1px solid var(--border)'}}>
+          <div className="text-muted text-sm" style={{fontFamily:'var(--mono)',fontSize:10,lineHeight:1.8}}>
+            <div>Salesforce Org Intel</div>
+            <div style={{color:'var(--text3)'}}>Business Documentation Agent</div>
+          </div>
+        </div>
+      </nav>
+
+      {/* MAIN CONTENT */}
+      <main className="main">
+        {page==='configure' && (
+          <ConfigurePage
+            sfConfig={sfConfig} setSfConfig={setSfConfig}
+            llmConfig={llmConfig} setLlmConfig={setLlmConfig}
+            outputDir={outputDir} setOutputDir={setOutputDir}
+            enableCache={enableCache} setEnableCache={setEnableCache}
+            orgName={orgName} setOrgName={setOrgName}
+            sfTestResult={sfTestResult} setSfTestResult={setSfTestResult}
+            llmTestResult={llmTestResult} setLlmTestResult={setLlmTestResult}
+            sfTesting={sfTesting} setSfTesting={setSfTesting}
+            llmTesting={llmTesting} setLlmTesting={setLlmTesting}
+            onGoToRun={()=>setPage('run')}
+          />
+        )}
+        {page==='run' && (
+          <RunPage
+            sfConfig={sfConfig} llmConfig={llmConfig}
+            outputDir={outputDir} enableCache={enableCache}
+            job={job} setJob={setJob}
+            setResults={setResults}
+            onViewResults={()=>setPage('results')}
+          />
+        )}
+        {page==='results' && (
+          <ResultsPage results={results} outputDir={outputDir}/>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ── PAGE: CONFIGURE ────────────────────────────────────────────────
+function ConfigurePage({sfConfig, setSfConfig, llmConfig, setLlmConfig,
+  outputDir, setOutputDir, enableCache, setEnableCache, orgName, setOrgName,
+  sfTestResult, setSfTestResult, llmTestResult, setLlmTestResult,
+  sfTesting, setSfTesting, llmTesting, setLlmTesting, onGoToRun}) {
+
+  const [tab, setTab] = useState('salesforce');
+
+  const testSF = async () => {
+    setSfTesting(true); setSfTestResult(null);
+    try {
+      const payload = tab==='salesforce' ? sfConfig : sfConfig;
+      const r = await fetch(`${API}/api/test-connection`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sfConfig)});
+      const d = await r.json();
+      setSfTestResult(d);
+    } catch(e) { setSfTestResult({ok:false, error:e.message}); }
+    setSfTesting(false);
+  };
+
+  const testLLM = async () => {
+    setSfTesting(true); setLlmTestResult(null);
+    try {
+      const r = await fetch(`${API}/api/test-llm`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(llmConfig)});
+      const d = await r.json();
+      setLlmTestResult(d);
+    } catch(e) { setLlmTestResult({ok:false, error:e.message}); }
+    setSfTesting(false);
+  };
+
+  const sfSet = (k,v) => setSfConfig(p=>({...p,[k]:v}));
+  const llmSet = (k,v) => setLlmConfig(p=>({...p,[k]:v}));
+
+  const llmModels = {
+    anthropic:['claude-sonnet-4-6','claude-opus-4-6','claude-haiku-4-5'],
+    openai:['gpt-4o','gpt-4o-mini','gpt-4-turbo','gpt-3.5-turbo'],
+    azure:['gpt-4o','gpt-4-turbo','gpt-35-turbo'],
+    google:['gemini-1.5-pro','gemini-1.5-flash','gemini-2.0-flash'],
+    ollama:['llama3.1','mistral','qwen2.5','codellama','phi3'],
+  };
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div className="page-title">Configure <em>your</em> org</div>
+        <div className="page-subtitle">Set up Salesforce credentials, LLM provider, and output options</div>
+      </div>
+
+      <div className="tabs">
+        {[['salesforce','☁ Salesforce'],['llm','◉ AI Provider'],['output','⊟ Output']].map(([id,label])=>(
+          <div key={id} className={`tab ${tab===id?'active':''}`} onClick={()=>setTab(id)}>{label}</div>
+        ))}
+      </div>
+
+      {tab==='salesforce' && (
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div className="card">
+            <div className="card-header">
+              <Icon name="sf"/> <span className="card-title">Org Connection</span>
+            </div>
+            <div className="card-body">
+              <div className="form-grid cols-1">
+                <div className="field">
+                  <label>Salesforce Org URL</label>
+                  <input value={sfConfig.instance_url} onChange={e=>sfSet('instance_url',e.target.value)}
+                    placeholder="https://yourcompany.my.salesforce.com"/>
+                </div>
+              </div>
+              <div className="divider"/>
+              <div className="mb-12">
+                <div className="section-title" style={{marginBottom:12}}>Authentication Method</div>
+                <div className="radio-group">
+                  {[
+                    ['A','Username + Password','Simple. Use for dev/POC. Requires MFA turned off or trusted IP.'],
+                    ['B','OAuth Client Credentials','Recommended for production. Requires a Connected App.'],
+                    ['C','JWT Bearer Token','Best for CI/CD. Requires RSA key pair and Connected App.'],
+                  ].map(([val,title,desc])=>(
+                    <label key={val} className={`radio-option ${sfConfig.auth_method===val?'selected':''}`}>
+                      <input type="radio" name="auth" value={val}
+                        checked={sfConfig.auth_method===val}
+                        onChange={()=>sfSet('auth_method',val)}/>
+                      <div>
+                        <div className="radio-label">{title}</div>
+                        <div className="radio-desc">{desc}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {sfConfig.auth_method==='A' && (
+                <div className="form-grid">
+                  <div className="field"><label>Username</label>
+                    <input value={sfConfig.username} onChange={e=>sfSet('username',e.target.value)} placeholder="user@company.com"/></div>
+                  <div className="field"><label>Password</label>
+                    <input type="password" value={sfConfig.password} onChange={e=>sfSet('password',e.target.value)} placeholder="••••••••"/></div>
+                  <div className="field"><label>Security Token</label>
+                    <input value={sfConfig.security_token} onChange={e=>sfSet('security_token',e.target.value)} placeholder="token from Setup → My Personal Info"/></div>
+                  <div className="field"><label>API Version</label>
+                    <input value={sfConfig.api_version} onChange={e=>sfSet('api_version',e.target.value)} placeholder="61.0"/></div>
+                </div>
+              )}
+              {sfConfig.auth_method==='B' && (
+                <div className="form-grid">
+                  <div className="field"><label>Consumer Key (Client ID)</label>
+                    <input value={sfConfig.client_id} onChange={e=>sfSet('client_id',e.target.value)} placeholder="3MVG9..."/></div>
+                  <div className="field"><label>Consumer Secret</label>
+                    <input type="password" value={sfConfig.client_secret} onChange={e=>sfSet('client_secret',e.target.value)} placeholder="••••••••"/></div>
+                  <div className="field"><label>API Version</label>
+                    <input value={sfConfig.api_version} onChange={e=>sfSet('api_version',e.target.value)} placeholder="61.0"/></div>
+                </div>
+              )}
+              {sfConfig.auth_method==='C' && (
+                <div className="form-grid">
+                  <div className="field"><label>Consumer Key (Client ID)</label>
+                    <input value={sfConfig.client_id} onChange={e=>sfSet('client_id',e.target.value)} placeholder="3MVG9..."/></div>
+                  <div className="field"><label>Username</label>
+                    <input value={sfConfig.username} onChange={e=>sfSet('username',e.target.value)} placeholder="user@company.com"/></div>
+                  <div className="field full"><label>Private Key File Path</label>
+                    <input value={sfConfig.private_key_file||''} onChange={e=>sfSet('private_key_file',e.target.value)} placeholder="config/server.key"/></div>
+                </div>
+              )}
+
+              <div className="mt-16 flex gap-8">
+                <button className="btn btn-ghost btn-sm" onClick={testSF} disabled={sfTesting}>
+                  {sfTesting ? <><span className="spinner"/>&nbsp;Testing…</> : '⚡ Test Connection'}
+                </button>
+              </div>
+              {sfTestResult && (
+                <div className={`conn-result mt-8 ${sfTestResult.ok?'alert-success':'alert-error'}`}>
+                  {sfTestResult.ok ? <>✓ Connected — {sfTestResult.instance_url}</> : <>✗ {sfTestResult.error}</>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab==='llm' && (
+        <div className="card">
+          <div className="card-header">
+            <Icon name="llm"/> <span className="card-title">AI / LLM Provider</span>
+          </div>
+          <div className="card-body">
+            <div className="form-grid">
+              <div className="field">
+                <label>Provider</label>
+                <select value={llmConfig.provider} onChange={e=>{
+                  llmSet('provider',e.target.value);
+                  llmSet('model',(llmModels[e.target.value]||[])[0]||'');
+                }}>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="openai">OpenAI (GPT-4o)</option>
+                  <option value="azure">Azure OpenAI</option>
+                  <option value="google">Google (Gemini)</option>
+                  <option value="ollama">Ollama (Local)</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Model</label>
+                <select value={llmConfig.model} onChange={e=>llmSet('model',e.target.value)}>
+                  {(llmModels[llmConfig.provider]||[]).map(m=>(
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              {llmConfig.provider!=='ollama' && (
+                <div className="field full">
+                  <label>API Key</label>
+                  <input type="password" value={llmConfig.api_key} onChange={e=>llmSet('api_key',e.target.value)}
+                    placeholder={
+                      llmConfig.provider==='anthropic' ? 'sk-ant-api03-…' :
+                      llmConfig.provider==='openai' ? 'sk-…' :
+                      llmConfig.provider==='google' ? 'AIza…' : 'Your API key'
+                    }/>
+                </div>
+              )}
+              {llmConfig.provider==='azure' && <>
+                <div className="field full"><label>Azure Endpoint</label>
+                  <input value={llmConfig.azure_endpoint||''} onChange={e=>llmSet('azure_endpoint',e.target.value)}
+                    placeholder="https://yourresource.openai.azure.com"/></div>
+                <div className="field"><label>API Version</label>
+                  <input value={llmConfig.azure_api_version||'2024-02-01'} onChange={e=>llmSet('azure_api_version',e.target.value)}/></div>
+              </>}
+              {llmConfig.provider==='ollama' && (
+                <div className="field full"><label>Ollama Base URL</label>
+                  <input value={llmConfig.ollama_base_url||'http://localhost:11434'} onChange={e=>llmSet('ollama_base_url',e.target.value)}/></div>
+              )}
+              <div className="field">
+                <label>Max Tokens</label>
+                <input type="number" value={llmConfig.max_tokens} onChange={e=>llmSet('max_tokens',parseInt(e.target.value))} min={512} max={8192}/>
+              </div>
+              <div className="field" style={{justifyContent:'flex-end',paddingTop:20}}>
+                <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',textTransform:'none',fontSize:12,letterSpacing:0}}>
+                  <input type="checkbox" checked={!llmConfig.verify_ssl}
+                    onChange={e=>llmSet('verify_ssl',!e.target.checked)} style={{width:'auto'}}/>
+                  <span style={{color:'var(--text2)'}}>Disable SSL verification (for corporate networks)</span>
+                </label>
+              </div>
+            </div>
+            <div className="mt-16 flex gap-8">
+              <button className="btn btn-ghost btn-sm" onClick={testLLM} disabled={llmTesting}>
+                {llmTesting ? <><span className="spinner"/>&nbsp;Testing…</> : '⚡ Test LLM Connection'}
+              </button>
+            </div>
+            {llmTestResult && (
+              <div className={`conn-result mt-8 ${llmTestResult.ok?'alert-success':'alert-error'}`}>
+                {llmTestResult.ok ? `✓ Connected — ${llmTestResult.response}` : `✗ ${llmTestResult.error}`}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab==='output' && (
+        <div className="card">
+          <div className="card-header">
+            <Icon name="docs"/> <span className="card-title">Output Settings</span>
+          </div>
+          <div className="card-body">
+            <div className="form-grid">
+              <div className="field">
+                <label>Org Display Name</label>
+                <input value={orgName} onChange={e=>setOrgName(e.target.value)} placeholder="My Company Org"/>
+              </div>
+              <div className="field">
+                <label>Output Directory</label>
+                <input value={outputDir} onChange={e=>setOutputDir(e.target.value)} placeholder="output/docs"/>
+              </div>
+              <div className="field" style={{justifyContent:'flex-end',paddingTop:20}}>
+                <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',textTransform:'none',fontSize:12,letterSpacing:0}}>
+                  <input type="checkbox" checked={enableCache} onChange={e=>setEnableCache(e.target.checked)} style={{width:'auto'}}/>
+                  <span style={{color:'var(--text2)'}}>Cache Salesforce metadata (re-run skips harvest)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-20 flex gap-12">
+        <button className="btn btn-primary" onClick={onGoToRun}>
+          ▶ &nbsp;Go to Run →
+        </button>
+        <span className="text-muted text-sm" style={{alignSelf:'center'}}>Configure all three tabs, then run the pipeline</span>
+      </div>
+    </div>
+  );
+}
+
+// ── PAGE: RUN ──────────────────────────────────────────────────────
+function RunPage({sfConfig, llmConfig, outputDir, enableCache, job, setJob, setResults, onViewResults}) {
+  const [log, setLog] = useState([]);
+  const [completedPhases, setCompletedPhases] = useState([]);
+  const [activePhase, setActivePhase] = useState(null);
+  const [harvestCounts, setHarvestCounts] = useState(null);
+  const logRef = useRef(null);
+  const esRef = useRef(null);
+
+  const isRunning = job?.status === 'running';
+
+  useEffect(()=>{
+    if(logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [log]);
+
+  const addLog = (msg, type='info') => {
+    const now = new Date().toLocaleTimeString('en-US',{hour12:false});
+    setLog(p=>[...p, {time:now, msg, type}]);
+  };
+
+  const startRun = async () => {
+    setLog([]); setCompletedPhases([]); setActivePhase(null); setHarvestCounts(null);
+
+    const payload = {
+      salesforce: sfConfig,
+      llm: llmConfig,
+      output_dir: outputDir,
+      enable_cache: enableCache,
+    };
+
+    try {
+      const r = await fetch(`${API}/api/run`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const {job_id} = await r.json();
+      setJob({id:job_id, status:'running', start:Date.now()});
+      addLog(`Job started: ${job_id}`, 'info');
+
+      // SSE stream
+      const es = new EventSource(`${API}/api/jobs/${job_id}/stream`);
+      esRef.current = es;
+
+      es.onmessage = (e) => {
+        const ev = JSON.parse(e.data);
+        if (ev.type === 'ping') return;
+        if (ev.type === 'log') addLog(ev.message, ev.message.startsWith('✗')?'error':'success');
+        if (ev.type === 'phase_complete') {
+          setCompletedPhases(p=>[...p, ev.phase]);
+          setActivePhase(null);
+        }
+        if (ev.type === 'harvest') setHarvestCounts(ev.counts);
+        if (ev.type === 'status' && ev.status==='running') setActivePhase('connect');
+        if (ev.type === 'done') {
+          setJob(j=>({...j, status:'done'}));
+          setActivePhase(null);
+          addLog(`✓ All done! Total: ${ev.total_time}s`, 'success');
+          // Fetch full results
+          fetch(`${API}/api/jobs/${job_id}/result`)
+            .then(r=>r.json()).then(setResults);
+          es.close();
+        }
+        if (ev.type === 'error') {
+          setJob(j=>({...j, status:'error', error:ev.message}));
+          addLog(`✗ ${ev.message}`, 'error');
+          es.close();
+        }
+      };
+      es.onerror = () => {
+        if (esRef.current?.readyState === EventSource.CLOSED) return;
+        addLog('Stream connection lost', 'error');
+      };
+    } catch(e) {
+      addLog(`✗ Failed to start: ${e.message}`, 'error');
+      setJob(null);
+    }
+  };
+
+  const elapsed = job ? Math.round((Date.now() - job.start) / 1000) : 0;
+
+  const getPhaseState = (phaseId) => {
+    if (completedPhases.includes(phaseId)) return 'done';
+    if (activePhase === phaseId) return 'active';
+    return 'pending';
+  };
+
+  const progressPct = Math.round((completedPhases.length / PHASES.length) * 100);
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div className="page-title">Run <em>the</em> pipeline</div>
+        <div className="page-subtitle">Harvest, analyze, and document your entire Salesforce org automatically</div>
+      </div>
+
+      {/* Run control */}
+      <div className="card mb-16">
+        <div className="card-body">
+          <div className="flex gap-12" style={{flexWrap:'wrap'}}>
+            <button className="btn btn-primary" onClick={startRun} disabled={isRunning}>
+              {isRunning ? <><span className="spinner"/>  Running…</> : '▶  Start Analysis'}
+            </button>
+            {job?.status==='done' && (
+              <button className="btn btn-ghost" onClick={onViewResults}>
+                ◈ View Results →
+              </button>
+            )}
+            {isRunning && (
+              <div className="flex gap-8" style={{alignSelf:'center'}}>
+                <div className="dot dot-blue dot-pulse"/>
+                <span className="mono text-sm" style={{color:'var(--accent)'}}>{elapsed}s elapsed</span>
+              </div>
+            )}
+            {job?.status==='error' && (
+              <div className="flex gap-8" style={{alignSelf:'center'}}>
+                <div className="dot dot-red"/>
+                <span className="mono text-sm" style={{color:'var(--red)'}}>Failed — check log below</span>
+              </div>
+            )}
+            {job?.status==='done' && (
+              <div className="flex gap-8" style={{alignSelf:'center'}}>
+                <div className="dot dot-green"/>
+                <span className="mono text-sm" style={{color:'var(--green)'}}>Complete ✓</span>
+              </div>
+            )}
+          </div>
+          {(isRunning || completedPhases.length>0) && (
+            <div className="mt-16">
+              <div className="flex gap-8 mb-8">
+                <span className="text-muted text-sm mono">{progressPct}%</span>
+                <span className="text-muted text-sm" style={{marginLeft:'auto'}}>{completedPhases.length}/{PHASES.length} phases</span>
+              </div>
+              <div className="progress-track">
+                <div className="progress-bar" style={{width:`${progressPct}%`}}/>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+        {/* Phase tracker */}
+        <div>
+          <div className="section-head">
+            <span className="section-title">Pipeline Phases</span>
+          </div>
+          <div className="phases">
+            {PHASES.map(ph=>{
+              const state = getPhaseState(ph.id);
+              return (
+                <div key={ph.id} className={`phase-row ${state}`}>
+                  <span style={{fontSize:13, width:18, textAlign:'center'}}>
+                    {state==='done' ? '✓' : state==='active' ? <span className="spinner" style={{width:12,height:12}}/> : '·'}
+                  </span>
+                  <span className="phase-name">{ph.label}</span>
+                  {state==='done' && <span className="phase-elapsed">done</span>}
+                  {state==='active' && <span className="phase-elapsed" style={{color:'var(--accent)'}}>running…</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Log + harvest counts */}
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          {harvestCounts && (
+            <div>
+              <div className="section-head"><span className="section-title">Harvested</span></div>
+              <div className="stat-grid" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+                {Object.entries(harvestCounts).map(([k,v])=>(
+                  <div key={k} className="stat-card">
+                    <div className="stat-value accent" style={{fontSize:22}}>{v}</div>
+                    <div className="stat-label">{k.replace(/_/g,' ')}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <div className="section-head"><span className="section-title">Live Log</span></div>
+            <div className="log-pane" ref={logRef}>
+              {log.length===0 && <div className="text-muted">Start the pipeline to see live output…</div>}
+              {log.map((l,i)=>(
+                <div key={i} className="log-line">
+                  <span className="log-time">{l.time}</span>
+                  <span className={`log-${l.type}`}>{l.msg}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── PAGE: RESULTS ──────────────────────────────────────────────────
+function ResultsPage({results, outputDir}) {
+  const [tab, setTab] = useState('overview');
+  const [selectedCat, setSelectedCat] = useState(null);
+  const [catView, setCatView] = useState('overview'); // overview | components
+
+  if (!results) {
+    return (
+      <div className="page">
+        <div className="empty-state">
+          <div className="empty-icon">◈</div>
+          <div className="empty-text">No results yet</div>
+          <div className="empty-sub">Run the pipeline first to see documentation here</div>
+        </div>
+      </div>
+    );
+  }
+
+  const s = results.stats || {};
+  const cats = results.categories || [];
+  const sections = results.sections || {};
+
+  const summaryStats = [
+    {label:'Components', value: s.annotations||'—', color:'accent'},
+    {label:'Files Written', value: s.files_written||'—', color:'green'},
+    {label:'Categories', value: cats.length||'—', color:''},
+    {label:'Integrations', value: (results.sections?.outbound?.match(/^##/gm)||[]).length||'—', color:''},
+  ];
+
+  const topTabs = [
+    {id:'overview', label:'Overview'},
+    {id:'components', label:'Components'},
+    {id:'hidden', label:'⚡ Hidden Logic'},
+    {id:'risks', label:'⚠ Risks'},
+    {id:'integrations', label:'⇄ Integrations'},
+    {id:'objects', label:'Objects'},
+  ];
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div className="page-title">Analysis <em>results</em></div>
+        <div className="page-subtitle" style={{display:'flex',alignItems:'center',gap:8}}>
+          Documentation saved to <code className="mono" style={{fontSize:11,background:'var(--bg3)',padding:'2px 8px',borderRadius:4,color:'var(--accent)'}}>{outputDir}</code>
+        </div>
+      </div>
+
+      {/* Summary stats */}
+      <div className="stat-grid mb-16">
+        {summaryStats.map(st=>(
+          <div key={st.label} className="stat-card">
+            <div className={`stat-value ${st.color}`}>{st.value}</div>
+            <div className="stat-label">{st.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="tabs">
+        {topTabs.map(t=>(
+          <div key={t.id} className={`tab ${tab===t.id?'active':''}`} onClick={()=>{setTab(t.id);setSelectedCat(null)}}>{t.label}</div>
+        ))}
+      </div>
+
+      {tab==='overview' && (
+        <div className="md-content">
+          <Markdown content={sections.overview}/>
+        </div>
+      )}
+
+      {tab==='components' && (
+        <div style={{display:'grid',gridTemplateColumns:'200px 1fr',gap:16}}>
+          {/* Category list */}
+          <div>
+            <div className="section-title mb-8">Categories</div>
+            {cats.map(cat=>(
+              <div key={cat.slug}
+                className={`nav-item ${selectedCat?.slug===cat.slug?'active':''}`}
+                style={{borderRadius:5,marginBottom:4}}
+                onClick={()=>{setSelectedCat(cat);setCatView('overview')}}>
+                <span className="flex-1 truncate" style={{fontSize:12}}>{cat.name}</span>
+                <span className="nav-badge">{cat.component_count}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Category content */}
+          <div>
+            {!selectedCat && (
+              <div className="empty-state" style={{paddingTop:40}}>
+                <div className="empty-icon">◈</div>
+                <div className="empty-text">Select a category</div>
+              </div>
+            )}
+            {selectedCat && (
+              <>
+                <div className="flex gap-8 mb-16">
+                  <div className="tabs" style={{margin:0,flex:1}}>
+                    {[['overview','Overview'],['components','All Components']].map(([id,label])=>(
+                      <div key={id} className={`tab ${catView===id?'active':''}`} onClick={()=>setCatView(id)}>{label}</div>
+                    ))}
+                  </div>
+                </div>
+                <div className="md-content">
+                  <Markdown content={catView==='overview' ? selectedCat.overview : selectedCat.components_md}/>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab==='hidden' && (
+        <div>
+          <div className="alert alert-info mb-16">
+            ⚡ These are business rules and logic embedded in code, flows, and configuration that were <strong>never explicitly documented</strong> — surfaced by AI analysis.
+          </div>
+          <div className="md-content"><Markdown content={sections.hidden_logic}/></div>
+        </div>
+      )}
+
+      {tab==='risks' && (
+        <div className="md-content"><Markdown content={sections.risks}/></div>
+      )}
+
+      {tab==='integrations' && (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          <div>
+            <div className="section-head"><span className="section-title">Outbound — This org calls</span></div>
+            <div className="md-content"><Markdown content={sections.outbound}/></div>
+          </div>
+          <div>
+            <div className="section-head"><span className="section-title">Inbound — External systems call in</span></div>
+            <div className="md-content"><Markdown content={sections.inbound}/></div>
+          </div>
+        </div>
+      )}
+
+      {tab==='objects' && (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          <div>
+            <div className="section-head"><span className="section-title">Object Usage Map</span></div>
+            <div className="md-content"><Markdown content={sections.objects}/></div>
+          </div>
+          <div>
+            <div className="section-head"><span className="section-title">Callout Map</span></div>
+            <div className="md-content"><Markdown content={sections.callouts}/></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
